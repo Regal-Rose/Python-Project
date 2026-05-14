@@ -12,36 +12,17 @@ from typing import List
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Add current, parent, and Vercel task directories to path
+# Add current directory to path
 current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-for d in [current_dir, parent_dir, "/var/task", "/var/task/backend"]:
-    if os.path.exists(d) and d not in sys.path:
-        sys.path.insert(0, d)
+if current_dir not in sys.path:
+    sys.path.insert(0, current_dir)
 
-# Finalized robust imports for Vercel flattening
-try:
-    from services.parser import extract_text_from_pdf
-    from services.skill_extractor import extract_skills
-    from services.matcher import get_similarity_scores
-    from services.recommender import get_top_recommendations
-    from services.suggestions import get_missing_skills
-    logger.info("Successfully loaded services via direct imports")
-except ImportError:
-    try:
-        from backend.services.parser import extract_text_from_pdf
-        from backend.services.skill_extractor import extract_skills
-        from backend.services.matcher import get_similarity_scores
-        from backend.services.recommender import get_top_recommendations
-        from backend.services.suggestions import get_missing_skills
-        logger.info("Successfully loaded services via backend prefix")
-    except ImportError as e:
-        logger.error(f"CRITICAL: Failed to load services: {e}")
-        extract_text_from_pdf = None
-        extract_skills = None
-        get_similarity_scores = None
-        get_top_recommendations = None
-        get_missing_skills = None
+from services.parser import extract_text_from_pdf
+from services.skill_extractor import extract_skills
+from services.matcher import get_similarity_scores
+from services.recommender import get_top_recommendations
+from services.suggestions import get_missing_skills
+logger.info("Successfully loaded services")
 
 app = FastAPI(title="AI Resume Analyzer API")
 
@@ -90,11 +71,11 @@ def health_check():
     
     # Check imports and show specific errors
     checks = {
-        "parser": "backend.services.parser",
-        "skill_extractor": "backend.services.skill_extractor",
-        "matcher": "backend.services.matcher",
-        "recommender": "backend.services.recommender",
-        "suggestions": "backend.services.suggestions"
+        "parser": "services.parser",
+        "skill_extractor": "services.skill_extractor",
+        "matcher": "services.matcher",
+        "recommender": "services.recommender",
+        "suggestions": "services.suggestions"
     }
     
     for name, module_path in checks.items():
@@ -121,7 +102,7 @@ async def analyze_resume(file: UploadFile = File(...)):
         for label, module_name in [("parser", "parser"), ("skill_extractor", "skill_extractor"), ("matcher", "matcher")]:
             error_found = "Not checked"
             # Try all common paths (absolute only for __import__)
-            for path in [f"backend.services.{module_name}", f"services.{module_name}"]:
+            for path in [f"services.{module_name}"]:
                 try:
                     __import__(path, fromlist=['*'])
                     error_found = None # Success
@@ -134,13 +115,11 @@ async def analyze_resume(file: UploadFile = File(...)):
             if error_found:
                 missing_reports.append(f"- {label}: {error_found}")
         
-        # Add folder structure debugging for Vercel
+        # Add folder structure debugging
         try:
             cwd = os.getcwd()
             files = os.listdir(cwd)
             structure = f"CWD: {cwd}\nFiles: {', '.join(files)}"
-            if 'backend' in files and os.path.isdir('backend'):
-                structure += f"\nBackend contents: {', '.join(os.listdir('backend'))}"
         except Exception as e:
             structure = f"Could not list directories: {e}"
 
@@ -201,4 +180,4 @@ if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8000))
     logger.info(f"Starting server on port {port}")
-    uvicorn.run("backend.app:app", host="0.0.0.0", port=port, reload=True)
+    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=True)
