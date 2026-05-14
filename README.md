@@ -309,7 +309,7 @@ Deploy on:
 ## Backend
 
 Deploy on:
-- Render
+- Railway
 
 ### Render Start Command
 
