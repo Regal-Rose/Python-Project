@@ -42,7 +42,7 @@ An AI-powered Resume Analysis System that parses resume PDFs, extracts skills, c
 
 ## Deployment
 - Frontend → Vercel
-- Backend → Render
+- Backend → Railway
 
 ---
 
