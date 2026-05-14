@@ -1,0 +1,54 @@
+import json
+import spacy
+from spacy.matcher import PhraseMatcher
+from typing import List
+try:
+    from ..utils.cleaner import clean_text
+except (ImportError, ValueError):
+    try:
+        from utils.cleaner import clean_text
+    except ImportError:
+        from backend.utils.cleaner import clean_text
+
+# Ensure the model is loaded
+try:
+    try:
+        import en_core_web_sm
+        nlp = en_core_web_sm.load()
+    except ImportError:
+        nlp = spacy.load("en_core_web_sm")
+except OSError:
+    try:
+        import spacy.cli
+        spacy.cli.download("en_core_web_sm")
+        nlp = spacy.load("en_core_web_sm")
+    except Exception as e:
+        print(f"Failed to load spaCy model: {e}")
+        raise
+
+import os
+def load_skills() -> List[str]:
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    with open(os.path.join(base_dir, "data", "skills.json"), "r", encoding="utf-8") as f:
+        skills = json.load(f)
+    return [skill.lower() for skill in skills]
+
+KNOWN_SKILLS = load_skills()
+matcher = PhraseMatcher(nlp.vocab, attr="LOWER")
+patterns = [nlp.make_doc(text) for text in KNOWN_SKILLS]
+matcher.add("SKILLS", patterns)
+
+def extract_skills(text: str) -> List[str]:
+    """
+    Extracts known skills from the given text using spaCy PhraseMatcher.
+    """
+    cleaned_text = clean_text(text)
+    doc = nlp(cleaned_text)
+    matches = matcher(doc)
+    
+    extracted = set()
+    for match_id, start, end in matches:
+        span = doc[start:end]
+        extracted.add(span.text.lower())
+        
+    return list(extracted)
